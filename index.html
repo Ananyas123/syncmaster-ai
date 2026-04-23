@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SyncMaster AI — Multi-Agent Planning System</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS — Cyberpunk Teal × Amber × Void
+═══════════════════════════════════════════════ */
+:root {
+  --void: #020408;
+  --deep: #060d14;
+  --surface: #0a1520;
+  --card: #0e1e2e;
+  --border: #1a3045;
+  --border-glow: #1e4060;
+  --teal: #00d4aa;
+  --teal-dim: #007a62;
+  --amber: #f0a500;
+  --amber-dim: #8a5e00;
+  --rose: #ff4d6d;
+  --ice: #7de8ff;
+  --text: #d4e8f0;
+  --muted: #4a7090;
+  --mono: 'DM Mono', monospace;
+  --display: 'Syne', sans-serif;
+  --serif: 'Fraunces', serif;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--display);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════ NOISE OVERLAY ═══════════════════════ */
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+
+/* ═══════════════════════ HERO SECTION ═══════════════════════ */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  overflow: hidden;
+}
+
+/* animated grid bg */
+.hero::after {
+  content:'';
+  position:absolute; inset:0; z-index:0;
+  background-image:
+    linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: gridDrift 20s linear infinite;
+}
+@keyframes gridDrift {
+  from { background-position: 0 0; }
+  to { background-position: 48px 48px; }
+}
+
+/* orbs */
+.orb {
+  position:absolute; border-radius:50%; filter: blur(80px); pointer-events:none; z-index:0;
+}
+.orb-1 { width:400px; height:400px; background:rgba(0,212,170,0.08); top:-100px; left:-100px; animation: float1 8s ease-in-out infinite; }
+.orb-2 { width:300px; height:300px; background:rgba(240,165,0,0.06); bottom:-80px; right:-80px; animation: float2 10s ease-in-out infinite; }
+.orb-3 { width:200px; height:200px; background:rgba(125,232,255,0.05); top:50%; left:60%; animation: float3 6s ease-in-out infinite; }
+
+@keyframes float1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,20px)} }
+@keyframes float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-20px,30px)} }
+@keyframes float3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(15px,-25px)} }
+
+.hero-content { position:relative; z-index:1; text-align:center; max-width:780px; }
+
+.hero-label {
+  display:inline-flex; align-items:center; gap:8px;
+  font-family: var(--mono); font-size:11px; letter-spacing:0.15em; text-transform:uppercase;
+  color:var(--teal); border:1px solid var(--teal-dim); border-radius:4px;
+  padding:5px 14px; margin-bottom:28px;
+  background:rgba(0,212,170,0.05);
+  animation: fadeSlideDown 0.8s ease both;
+}
+.hero-label::before { content:'●'; animation: blink 1.5s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+.hero-title {
+  font-family: var(--serif);
+  font-size: clamp(52px, 8vw, 96px);
+  font-weight: 700;
+  line-height: 0.95;
+  margin-bottom: 20px;
+  animation: fadeSlideDown 0.8s 0.1s ease both;
+}
+.hero-title .word-sync { color: var(--teal); font-style:italic; }
+.hero-title .word-master { color: var(--text); }
+
+.hero-sub {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-bottom: 48px;
+  animation: fadeSlideDown 0.8s 0.2s ease both;
+}
+
+.agent-row {
+  display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:40px;
+  animation: fadeSlideDown 0.8s 0.3s ease both;
+}
+.agent-pill {
+  display:flex; align-items:center; gap:6px;
+  padding:6px 14px; border-radius:3px;
+  font-family:var(--mono); font-size:11px;
+  border:1px solid; transition: all 0.2s;
+}
+.pill-teal { border-color:var(--teal-dim); color:var(--teal); background:rgba(0,212,170,0.05); }
+.pill-amber { border-color:var(--amber-dim); color:var(--amber); background:rgba(240,165,0,0.05); }
+.pill-ice { border-color:rgba(125,232,255,0.3); color:var(--ice); background:rgba(125,232,255,0.05); }
+.agent-pill:hover { transform:translateY(-2px); filter:brightness(1.3); }
+
+/* INPUT BOX */
+.input-glass {
+  background: rgba(10,21,32,0.8);
+  border: 1px solid var(--border-glow);
+  border-radius: 12px;
+  padding: 24px;
+  backdrop-filter: blur(20px);
+  animation: fadeSlideDown 0.8s 0.4s ease both;
+  box-shadow: 0 0 60px rgba(0,212,170,0.04), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.input-top {
+  font-family:var(--mono); font-size:10px; color:var(--teal);
+  letter-spacing:0.1em; margin-bottom:12px; opacity:0.7;
+}
+
+textarea {
+  width:100%; background:transparent; border:none; outline:none;
+  color:var(--text); font-family:var(--display); font-size:15px;
+  resize:none; line-height:1.6; min-height:80px;
+}
+textarea::placeholder { color:var(--muted); font-style:italic; }
+
+.input-footer { display:flex; gap:10px; align-items:center; margin-top:16px; flex-wrap:wrap; }
+
+.btn-activate {
+  display:flex; align-items:center; gap:8px;
+  padding:12px 28px;
+  background: linear-gradient(135deg, var(--teal-dim), var(--teal));
+  color: var(--void); font-family:var(--display); font-size:13px; font-weight:700;
+  border:none; border-radius:6px; cursor:pointer;
+  transition: all 0.25s; letter-spacing:0.05em;
+  box-shadow: 0 0 30px rgba(0,212,170,0.2);
+}
+.btn-activate:hover { transform:translateY(-2px); box-shadow:0 0 50px rgba(0,212,170,0.4); }
+.btn-activate:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+
+.btn-clear {
+  padding:12px 18px; background:transparent;
+  color:var(--muted); border:1px solid var(--border);
+  border-radius:6px; font-family:var(--display); font-size:13px; cursor:pointer;
+  transition:all 0.2s;
+}
+.btn-clear:hover { border-color:var(--text); color:var(--text); }
+
+.chips { display:flex; gap:8px; flex-wrap:wrap; }
+.chip {
+  padding:4px 12px; border-radius:3px;
+  background:rgba(0,212,170,0.04); border:1px solid rgba(0,212,170,0.12);
+  color:var(--teal); font-size:11px; font-family:var(--mono);
+  cursor:pointer; transition:all 0.2s;
+}
+.chip:hover { background:rgba(0,212,170,0.1); }
+
+/* spinner */
+.spin {
+  width:14px; height:14px; border:2px solid rgba(0,0,0,0.3); border-top-color:#000;
+  border-radius:50%; animation:rotate 0.7s linear infinite; display:inline-block;
+}
+@keyframes rotate { to{transform:rotate(360deg)} }
+
+@keyframes fadeSlideDown {
+  from { opacity:0; transform:translateY(-20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+
+/* scroll hint */
+.scroll-hint {
+  position:absolute; bottom:32px; left:50%; transform:translateX(-50%);
+  z-index:1; text-align:center; opacity:0;
+  animation: fadeIn 1s 1.5s ease both;
+}
+@keyframes fadeIn { to{opacity:1} }
+.scroll-hint span { font-family:var(--mono); font-size:10px; color:var(--muted); display:block; margin-bottom:8px; letter-spacing:0.1em; }
+.scroll-arrow { width:1px; height:40px; background:linear-gradient(to bottom, var(--teal), transparent); margin:0 auto; animation:scrollPulse 2s ease-in-out infinite; }
+@keyframes scrollPulse { 0%,100%{height:40px;opacity:0.5} 50%{height:60px;opacity:1} }
+
+/* ═══════════════ SCROLLYTELLING — HOW IT WORKS ═══════════════ */
+.scrolly-section {
+  position: relative;
+  padding: 120px 0;
+  background: var(--deep);
+}
+
+.scrolly-label {
+  text-align:center; font-family:var(--mono); font-size:11px;
+  color:var(--teal); letter-spacing:0.2em; text-transform:uppercase;
+  margin-bottom:16px;
+}
+.scrolly-title {
+  text-align:center; font-family:var(--serif); font-size:clamp(32px,5vw,56px);
+  font-weight:300; font-style:italic; margin-bottom:80px; color:var(--text);
+}
+
+.scrolly-container {
+  max-width:1100px; margin:0 auto; padding:0 40px;
+  display:flex; flex-direction:column; gap:0;
+}
+
+.scrolly-step {
+  display:grid; grid-template-columns:1fr 1fr; gap:80px;
+  align-items:center; padding:80px 0;
+  border-top:1px solid var(--border);
+  opacity:0; transform:translateY(40px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.scrolly-step.visible { opacity:1; transform:translateY(0); }
+.scrolly-step:nth-child(even) .step-visual { order:-1; }
+
+.step-number {
+  font-family:var(--mono); font-size:11px; color:var(--teal);
+  letter-spacing:0.15em; margin-bottom:16px; opacity:0.6;
+}
+.step-title {
+  font-family:var(--serif); font-size:clamp(24px,3vw,36px);
+  font-weight:700; line-height:1.1; margin-bottom:16px;
+}
+.step-desc {
+  font-family:var(--mono); font-size:13px; color:var(--muted);
+  line-height:1.8;
+}
+.step-tag {
+  display:inline-block; margin-top:20px;
+  font-family:var(--mono); font-size:10px;
+  padding:4px 12px; border-radius:3px;
+  background:rgba(0,212,170,0.08); border:1px solid var(--teal-dim); color:var(--teal);
+}
+
+/* step visuals */
+.step-visual {
+  position:relative; height:220px; border-radius:12px;
+  background:var(--surface); border:1px solid var(--border);
+  overflow:hidden; display:flex; align-items:center; justify-content:center;
+}
+.step-visual::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg, rgba(0,212,170,0.04), transparent 60%);
+}
+
+/* Visual 1: scanning animation */
+.vis-scan {
+  width:80%; position:relative;
+}
+.scan-line { height:2px; background:rgba(0,212,170,0.15); border-radius:1px; margin:8px 0; }
+.scan-line.active { background:rgba(0,212,170,0.6); box-shadow:0 0 8px rgba(0,212,170,0.4); animation:scanPulse 2s ease-in-out infinite; }
+.scan-cursor {
+  position:absolute; top:0; left:0; width:2px; height:100%;
+  background:var(--teal); box-shadow:0 0 12px var(--teal);
+  animation:scanMove 3s ease-in-out infinite;
+}
+@keyframes scanMove { 0%,100%{left:0;opacity:0} 10%,90%{opacity:1} 50%{left:calc(100% - 2px)} }
+@keyframes scanPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+
+/* Visual 2: tree breakdown */
+.vis-tree {
+  font-family:var(--mono); font-size:11px; color:var(--muted); line-height:2;
+  padding:20px; text-align:left; width:80%;
+}
+.vis-tree .node { color:var(--teal); font-weight:500; }
+.vis-tree .child { color:var(--text); padding-left:20px; }
+.vis-tree .child::before { content:'├─ '; color:var(--border-glow); }
+
+/* Visual 3: calendar blocks */
+.vis-calendar { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; padding:16px; width:85%; }
+.cal-block {
+  height:32px; border-radius:4px; border:1px solid var(--border);
+  background:var(--card); display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:9px; color:var(--muted);
+  transition:all 0.3s;
+}
+.cal-block.filled-high { background:rgba(240,165,0,0.15); border-color:var(--amber-dim); color:var(--amber); }
+.cal-block.filled-med { background:rgba(0,212,170,0.1); border-color:var(--teal-dim); color:var(--teal); }
+
+/* ═══════════════════════ PIPELINE BAR ═══════════════════════ */
+.pipeline-section {
+  max-width:1400px; margin:0 auto; padding:0 40px 32px;
+  display:none;
+}
+.pipeline-section.show { display:block; }
+
+.pipeline-header {
+  font-family:var(--mono); font-size:10px; color:var(--muted);
+  letter-spacing:0.1em; text-transform:uppercase; margin-bottom:12px;
+}
+.pipeline {
+  display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden;
+}
+.pipe-step {
+  flex:1; padding:14px 18px; display:flex; align-items:center; gap:10px;
+  border-right:1px solid var(--border); transition:all 0.4s;
+  background:var(--surface);
+}
+.pipe-step:last-child { border-right:none; }
+.pipe-step.active { background:rgba(0,212,170,0.06); border-bottom:2px solid var(--teal); }
+.pipe-step.done { background:rgba(0,212,170,0.03); }
+.pipe-step.done .pipe-icon { color:var(--teal); }
+
+.pipe-icon { font-size:18px; flex-shrink:0; }
+.pipe-name { font-size:12px; font-weight:700; font-family:var(--display); }
+.pipe-status { font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:2px; }
+
+/* ═══════════════════════ STATS BAR ═══════════════════════ */
+.stats-section {
+  max-width:1400px; margin:0 auto; padding:0 40px 28px;
+  display:none;
+}
+.stats-section.show { display:flex; gap:16px; }
+.stat-card {
+  flex:1; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:16px 20px;
+  animation: popIn 0.5s ease both;
+}
+@keyframes popIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+.stat-val {
+  font-family:var(--mono); font-size:28px; font-weight:500;
+  background:linear-gradient(135deg, var(--teal), var(--ice));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.stat-label { font-size:11px; color:var(--muted); margin-top:4px; font-family:var(--mono); }
+
+/* ═══════════════ MULTI-MODULE DASHBOARD ═══════════════ */
+.dashboard-section {
+  max-width:1400px; margin:0 auto; padding:0 40px 80px;
+  display:none;
+}
+.dashboard-section.show { display:block; }
+
+.dash-header {
+  display:flex; align-items:center; gap:12px; margin-bottom:24px;
+}
+.dash-title {
+  font-family:var(--serif); font-size:20px; font-weight:700; font-style:italic;
+}
+.dash-live {
+  font-family:var(--mono); font-size:10px; color:var(--teal);
+  border:1px solid var(--teal-dim); padding:3px 10px; border-radius:3px;
+  background:rgba(0,212,170,0.05); display:flex; align-items:center; gap:5px;
+}
+.dash-live::before { content:'●'; animation:blink 1.5s infinite; }
+
+/* TAB SYSTEM */
+.tab-row {
+  display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:28px;
+}
+.tab-btn {
+  padding:10px 20px; background:transparent; border:none; border-bottom:2px solid transparent;
+  color:var(--muted); font-family:var(--mono); font-size:11px; letter-spacing:0.05em;
+  cursor:pointer; transition:all 0.2s; margin-bottom:-1px;
+}
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { color:var(--teal); border-bottom-color:var(--teal); }
+
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* ANALYSIS MODULE */
+.analysis-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+
+.summary-card {
+  grid-column:1/-1;
+  background:rgba(0,212,170,0.04); border:1px solid var(--teal-dim);
+  border-radius:10px; padding:18px 20px;
+  font-family:var(--mono); font-size:13px; color:var(--text); line-height:1.8;
+  position:relative; overflow:hidden;
+}
+.summary-card::before {
+  content:'// ANALYSIS OUTPUT';
+  position:absolute; top:10px; right:16px;
+  font-size:9px; color:var(--teal-dim); letter-spacing:0.1em;
+}
+
+.goal-card {
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:16px; transition:all 0.2s; cursor:default;
+}
+.goal-card:hover { border-color:var(--border-glow); transform:translateY(-2px); }
+.goal-top { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+.cat-tag {
+  font-family:var(--mono); font-size:10px; padding:3px 10px; border-radius:3px;
+  border:1px solid;
+}
+.cat-academic { border-color:rgba(125,232,255,0.3); color:var(--ice); background:rgba(125,232,255,0.05); }
+.cat-project { border-color:var(--teal-dim); color:var(--teal); background:rgba(0,212,170,0.05); }
+.cat-professional { border-color:rgba(188,140,255,0.3); color:#bc8cff; background:rgba(188,140,255,0.05); }
+.cat-career { border-color:rgba(255,77,109,0.3); color:var(--rose); background:rgba(255,77,109,0.05); }
+.cat-learning { border-color:var(--amber-dim); color:var(--amber); background:rgba(240,165,0,0.05); }
+.cat-personal { border-color:var(--border); color:var(--muted); background:transparent; }
+.cat-task { border-color:rgba(125,232,255,0.3); color:var(--ice); background:rgba(125,232,255,0.05); }
+
+.pri-badge {
+  font-family:var(--mono); font-size:9px; padding:2px 8px; border-radius:2px; font-weight:500;
+  margin-left:auto;
+}
+.pri-critical { background:rgba(255,77,109,0.15); color:var(--rose); border:1px solid rgba(255,77,109,0.3); }
+.pri-high { background:rgba(240,165,0,0.15); color:var(--amber); border:1px solid rgba(240,165,0,0.3); }
+.pri-medium { background:rgba(0,212,170,0.1); color:var(--teal); border:1px solid var(--teal-dim); }
+.pri-low { background:rgba(74,112,144,0.1); color:var(--muted); border:1px solid var(--border); }
+
+.goal-context { font-family:var(--mono); font-size:12px; color:var(--muted); font-style:italic; }
+
+.complexity-row { grid-column:1/-1; display:flex; gap:12px; }
+.complexity-item {
+  flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px;
+  padding:14px; text-align:center;
+}
+.complexity-key { font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:6px; }
+.complexity-val { font-size:18px; font-weight:700; font-family:var(--mono); }
+
+/* TASKS MODULE */
+.tasks-toolbar {
+  display:flex; gap:8px; align-items:center; margin-bottom:16px;
+}
+.filter-btn {
+  padding:5px 14px; border-radius:3px; border:1px solid var(--border);
+  background:transparent; color:var(--muted); font-family:var(--mono); font-size:10px;
+  cursor:pointer; transition:all 0.2s;
+}
+.filter-btn.active, .filter-btn:hover { border-color:var(--teal); color:var(--teal); background:rgba(0,212,170,0.05); }
+
+.tasks-list { display:flex; flex-direction:column; gap:8px; }
+
+.task-row {
+  display:flex; align-items:flex-start; gap:12px;
+  background:var(--card); border:1px solid var(--border); border-radius:8px;
+  padding:14px 16px; cursor:pointer; transition:all 0.2s;
+  border-left:3px solid var(--border);
+}
+.task-row:hover { border-color:var(--border-glow); transform:translateX(4px); }
+.task-row.done { opacity:0.5; }
+.task-row.done .task-text { text-decoration:line-through; }
+
+.task-row.p-critical { border-left-color:var(--rose); }
+.task-row.p-high { border-left-color:var(--amber); }
+.task-row.p-medium { border-left-color:var(--teal); }
+.task-row.p-low { border-left-color:var(--muted); }
+
+.task-check-box {
+  width:18px; height:18px; border-radius:4px; border:2px solid var(--border);
+  flex-shrink:0; margin-top:1px; display:flex; align-items:center; justify-content:center;
+  transition:all 0.2s; font-size:10px; font-weight:700; color:var(--void);
+}
+.task-row.done .task-check-box { background:var(--teal); border-color:var(--teal); }
+
+.task-main { flex:1; }
+.task-text { font-size:13px; font-weight:600; margin-bottom:6px; }
+.task-meta { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.task-dl { font-family:var(--mono); font-size:10px; color:var(--muted); }
+.task-db { font-family:var(--mono); font-size:9px; color:var(--teal); background:rgba(0,212,170,0.08); border:1px solid var(--teal-dim); padding:1px 7px; border-radius:3px; }
+.task-cat { font-family:var(--mono); font-size:9px; color:var(--muted); }
+
+/* SCHEDULE MODULE */
+.schedule-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
+
+.day-col { background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.day-col-header {
+  padding:12px 16px; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.day-name { font-family:var(--display); font-size:13px; font-weight:700; }
+.day-date { font-family:var(--mono); font-size:10px; color:var(--muted); }
+.day-slots { padding:12px; display:flex; flex-direction:column; gap:8px; }
+
+.slot-card {
+  padding:10px 12px; border-radius:6px;
+  border:1px solid var(--border); border-left:3px solid;
+  background:var(--surface);
+}
+.slot-card.p-critical { border-left-color:var(--rose); }
+.slot-card.p-high { border-left-color:var(--amber); }
+.slot-card.p-medium { border-left-color:var(--teal); }
+.slot-card.p-low { border-left-color:var(--muted); }
+
+.slot-time { font-family:var(--mono); font-size:10px; color:var(--muted); margin-bottom:4px; }
+.slot-name { font-size:12px; font-weight:600; margin-bottom:4px; }
+.slot-dur { font-family:var(--mono); font-size:10px; color:var(--muted); }
+.mcp-tag { font-family:var(--mono); font-size:9px; color:#bc8cff; margin-top:4px; display:inline-block; }
+
+/* ═══════════════ WATERFALL — EMOTIONAL TIMELINE ═══════════════ */
+.timeline-section {
+  background: var(--deep);
+  padding: 120px 0;
+  position:relative; overflow:hidden;
+}
+
+.timeline-section::before {
+  content:'';
+  position:absolute; left:50%; top:0; bottom:0; width:1px;
+  background: linear-gradient(to bottom, transparent, var(--teal-dim) 20%, var(--teal-dim) 80%, transparent);
+  transform:translateX(-50%);
+}
+
+.timeline-header { text-align:center; margin-bottom:80px; position:relative; z-index:1; }
+.timeline-label { font-family:var(--mono); font-size:11px; color:var(--amber); letter-spacing:0.2em; text-transform:uppercase; margin-bottom:12px; }
+.timeline-title { font-family:var(--serif); font-size:clamp(28px,4vw,48px); font-weight:300; font-style:italic; }
+
+.waterfall { max-width:900px; margin:0 auto; padding:0 40px; position:relative; z-index:1; }
+
+.wf-item {
+  display:flex; align-items:flex-start; margin-bottom:60px;
+  opacity:0; transform:translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.wf-item.visible { opacity:1; transform:translateY(0); }
+
+.wf-item:nth-child(odd) { flex-direction:row-reverse; }
+.wf-item:nth-child(odd) .wf-card { text-align:right; }
+.wf-item:nth-child(odd) .wf-tags { justify-content:flex-end; }
+
+.wf-node {
+  width:48px; height:48px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+  border:2px solid; position:relative; z-index:2;
+  margin:0 24px;
+  box-shadow:0 0 20px rgba(0,212,170,0.15);
+}
+.wf-node-teal { border-color:var(--teal); background:rgba(0,212,170,0.08); }
+.wf-node-amber { border-color:var(--amber); background:rgba(240,165,0,0.08); }
+.wf-node-ice { border-color:var(--ice); background:rgba(125,232,255,0.08); }
+.wf-node-rose { border-color:var(--rose); background:rgba(255,77,109,0.08); }
+
+.wf-card { flex:1; }
+
+.wf-phase {
+  font-family:var(--mono); font-size:10px; color:var(--muted);
+  letter-spacing:0.15em; text-transform:uppercase; margin-bottom:8px;
+}
+.wf-heading {
+  font-family:var(--serif); font-size:22px; font-weight:700; margin-bottom:8px; line-height:1.2;
+}
+.wf-body {
+  font-family:var(--mono); font-size:12px; color:var(--muted); line-height:1.8; margin-bottom:12px;
+}
+.wf-tags { display:flex; gap:6px; flex-wrap:wrap; }
+.wf-tag {
+  font-family:var(--mono); font-size:10px; padding:3px 10px; border-radius:2px;
+  background:var(--surface); border:1px solid var(--border); color:var(--muted);
+}
+
+/* ═══════════════════════ EMPTY STATE ═══════════════════════ */
+.empty { text-align:center; padding:60px 20px; color:var(--muted); }
+.empty-icon { font-size:40px; margin-bottom:12px; opacity:0.3; }
+.empty-text { font-family:var(--mono); font-size:12px; }
+
+/* ═══════════════════════ FOOTER ═══════════════════════ */
+.footer {
+  border-top:1px solid var(--border); padding:32px 40px;
+  display:flex; align-items:center; justify-content:space-between;
+  max-width:1400px; margin:0 auto;
+}
+.footer-brand { font-family:var(--serif); font-size:18px; font-style:italic; color:var(--teal); }
+.footer-meta { font-family:var(--mono); font-size:11px; color:var(--muted); }
+
+/* ═══════════════════════ RESPONSIVE ═══════════════════════ */
+@media (max-width:900px) {
+  .scrolly-step { grid-template-columns:1fr; gap:32px; }
+  .scrolly-step:nth-child(even) .step-visual { order:0; }
+  .analysis-grid { grid-template-columns:1fr; }
+  .timeline-section::before { left:32px; }
+  .wf-item, .wf-item:nth-child(odd) { flex-direction:column; padding-left:60px; }
+  .wf-node { position:absolute; left:8px; margin:0; }
+  .wf-item { position:relative; }
+  .wf-item:nth-child(odd) .wf-card { text-align:left; }
+  .wf-item:nth-child(odd) .wf-tags { justify-content:flex-start; }
+  .waterfall { padding:0 20px; }
+  .stats-section.show { flex-wrap:wrap; }
+}
+
+/* ═══════════════════════ SCROLLBAR ═══════════════════════ */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--void); }
+::-webkit-scrollbar-thumb { background:var(--border-glow); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ HERO ══════════════════ -->
+<section class="hero" id="hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="hero-content">
+    <div class="hero-label">Multi-Agent AI System — v3.0</div>
+
+    <h1 class="hero-title">
+      <span class="word-sync">Sync</span><span class="word-master">Master</span>
+    </h1>
+
+    <p class="hero-sub">
+      Three specialized AI agents. One unified intelligence.<br/>
+      Transform your goals → actionable tasks → optimized schedules.
+    </p>
+
+    <div class="agent-row">
+      <span class="agent-pill pill-teal">🧠 PrimaryAgent-v3</span>
+      <span class="agent-pill pill-amber">📋 TaskAgent-v3</span>
+      <span class="agent-pill pill-ice">📅 ScheduleMCP-v3</span>
+    </div>
+
+    <div class="input-glass">
+      <div class="input-top">// agent.input.listen() — describe your goals below</div>
+      <textarea id="goalInput" rows="3"
+        placeholder="e.g. I have a Computer Networks exam next week and a Java project due Friday..."></textarea>
+      <div class="input-footer">
+        <button class="btn-activate" id="activateBtn" onclick="processGoal()">
+          <span id="btnIcon">⚡</span>
+          <span id="btnText">Activate Agents</span>
+        </button>
+        <button class="btn-clear" onclick="clearAll()">Reset</button>
+      </div>
+      <div class="chips" style="margin-top:12px;">
+        <span class="chip" onclick="setEx(this)">Networks exam + Java project</span>
+        <span class="chip" onclick="setEx(this)">Google interview prep this week</span>
+        <span class="chip" onclick="setEx(this)">ML assignment + team presentation</span>
+        <span class="chip" onclick="setEx(this)">Hackathon submission deadline Friday</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>SCROLL TO EXPLORE</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ══════════════ PIPELINE BAR ══════════════ -->
+<div class="pipeline-section" id="pipelineSection" style="max-width:1400px;margin:32px auto 0;padding:0 40px;">
+  <div class="pipeline-header">// agent.pipeline.status</div>
+  <div class="pipeline">
+    <div class="pipe-step" id="pipe1">
+      <span class="pipe-icon">🧠</span>
+      <div>
+        <div class="pipe-name" style="color:var(--teal)">Primary Agent</div>
+        <div class="pipe-status" id="pipeStatus1">Standby</div>
+      </div>
+    </div>
+    <div class="pipe-step" id="pipe2">
+      <span class="pipe-icon">📋</span>
+      <div>
+        <div class="pipe-name" style="color:var(--amber)">Task Agent</div>
+        <div class="pipe-status" id="pipeStatus2">Standby</div>
+      </div>
+    </div>
+    <div class="pipe-step" id="pipe3">
+      <span class="pipe-icon">📅</span>
+      <div>
+        <div class="pipe-name" style="color:var(--ice)">Schedule MCP</div>
+        <div class="pipe-status" id="pipeStatus3">Standby</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ STATS BAR ══════════════ -->
+<div class="stats-section" id="statsSection" style="max-width:1400px;margin:20px auto 0;padding:0 40px;">
+  <div class="stat-card">
+    <div class="stat-val" id="sv1">—</div>
+    <div class="stat-label">Goals Detected</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" id="sv2">—</div>
+    <div class="stat-label">Tasks Generated</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" id="sv3">—</div>
+    <div class="stat-label">Days Planned</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" style="background:linear-gradient(135deg,var(--amber),var(--rose));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">SQLite</div>
+    <div class="stat-label">Database Active</div>
+  </div>
+</div>
+
+<!-- ══════════════ MULTI-MODULE DASHBOARD ══════════════ -->
+<div class="dashboard-section" id="dashSection" style="max-width:1400px;margin:28px auto 0;padding:0 40px 80px;">
+  <div class="dash-header">
+    <div class="dash-title">Mission Control</div>
+    <div class="dash-live">Live Results</div>
+  </div>
+  <div class="tab-row">
+    <button class="tab-btn active" onclick="switchTab('analysis',this)">🧠 Analysis</button>
+    <button class="tab-btn" onclick="switchTab('tasks',this)">📋 Tasks</button>
+    <button class="tab-btn" onclick="switchTab('schedule',this)">📅 Schedule</button>
+  </div>
+
+  <!-- ANALYSIS TAB -->
+  <div class="tab-panel active" id="tab-analysis">
+    <div class="analysis-grid" id="analysisContent">
+      <div class="empty" style="grid-column:1/-1;">
+        <div class="empty-icon">🧠</div>
+        <div class="empty-text">Activate agents to see analysis</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS TAB -->
+  <div class="tab-panel" id="tab-tasks">
+    <div class="tasks-toolbar">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted);">Filter:</span>
+      <button class="filter-btn active" onclick="filterTasks('all',this)">All</button>
+      <button class="filter-btn" onclick="filterTasks('critical',this)">Critical</button>
+      <button class="filter-btn" onclick="filterTasks('high',this)">High</button>
+      <button class="filter-btn" onclick="filterTasks('medium',this)">Medium</button>
+    </div>
+    <div class="tasks-list" id="tasksContent">
+      <div class="empty">
+        <div class="empty-icon">📋</div>
+        <div class="empty-text">Tasks will appear here after analysis</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE TAB -->
+  <div class="tab-panel" id="tab-schedule">
+    <div class="schedule-grid" id="scheduleContent">
+      <div class="empty" style="grid-column:1/-1;">
+        <div class="empty-icon">📅</div>
+        <div class="empty-text">Schedule will be built after task analysis</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SCROLLYTELLING — HOW IT WORKS ══════════════ -->
+<section class="scrolly-section">
+  <div style="max-width:1100px;margin:0 auto;padding:0 40px;">
+    <div class="scrolly-label">// How It Works</div>
+    <div class="scrolly-title">Three agents. One mission.</div>
+  </div>
+
+  <div class="scrolly-container">
+    <div class="scrolly-step" data-scroll>
+      <div class="step-content">
+        <div class="step-number">// AGENT_01</div>
+        <div class="step-title">Primary Agent<br/>reads your intent</div>
+        <div class="step-desc">
+          Natural language is parsed across 18 semantic categories.
+          Priority levels, goal categories, and complexity scores
+          are extracted before any task is created.
+        </div>
+        <span class="step-tag">NLP → Category Classification</span>
+      </div>
+      <div class="step-visual">
+        <div class="vis-scan">
+          <div class="scan-line"></div>
+          <div class="scan-line active"></div>
+          <div class="scan-line"></div>
+          <div class="scan-line active"></div>
+          <div class="scan-line"></div>
+          <div class="scan-line active"></div>
+          <div class="scan-cursor"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scrolly-step" data-scroll>
+      <div class="step-content">
+        <div class="step-number">// AGENT_02</div>
+        <div class="step-title">Task Agent<br/>breaks it down</div>
+        <div class="step-desc">
+          Each goal is decomposed into concrete, time-bound tasks
+          using category-specific templates. Everything is persisted
+          to SQLite with priority ordering.
+        </div>
+        <span class="step-tag">Goal → Task Tree → SQLite</span>
+      </div>
+      <div class="step-visual">
+        <div class="vis-tree">
+          <div class="node">📁 Academic Goal</div>
+          <div class="child">Review lecture notes</div>
+          <div class="child">Create study schedule</div>
+          <div class="child">Mock tests</div>
+          <div class="node" style="margin-top:8px;">📁 Project Goal</div>
+          <div class="child">Define scope</div>
+          <div class="child">Implement core</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scrolly-step" data-scroll>
+      <div class="step-content">
+        <div class="step-number">// AGENT_03</div>
+        <div class="step-title">Schedule MCP<br/>owns your time</div>
+        <div class="step-desc">
+          The MCP calendar tool assigns each task to optimal time slots
+          across a 5-day window, prioritizing critical items at peak
+          productivity hours.
+        </div>
+        <span class="step-tag">MCP → calendar_integration</span>
+      </div>
+      <div class="step-visual">
+        <div class="vis-calendar">
+          <div class="cal-block" style="grid-column:1/-1;font-size:8px;height:20px;color:var(--teal);">5-DAY PLAN</div>
+          <div class="cal-block filled-high">08:00</div>
+          <div class="cal-block filled-med">09:30</div>
+          <div class="cal-block"></div>
+          <div class="cal-block filled-high">13:00</div>
+          <div class="cal-block filled-med">14:30</div>
+          <div class="cal-block filled-med">08:00</div>
+          <div class="cal-block"></div>
+          <div class="cal-block filled-high">11:00</div>
+          <div class="cal-block"></div>
+          <div class="cal-block filled-med">16:00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ WATERFALL EMOTIONAL TIMELINE ══════════════ -->
+<section class="timeline-section">
+  <div class="timeline-header">
+    <div class="timeline-label">Your Journey</div>
+    <div class="timeline-title">From chaos to clarity — the SyncMaster way</div>
+  </div>
+
+  <div class="waterfall">
+
+    <div class="wf-item" data-wf>
+      <div class="wf-node wf-node-rose">😰</div>
+      <div class="wf-card">
+        <div class="wf-phase">Phase 0 — The Problem</div>
+        <div class="wf-heading">Overwhelmed by everything at once</div>
+        <div class="wf-body">
+          Deadlines colliding. Priorities unclear. Brain running in 10 directions simultaneously.
+          You know you have a lot to do — but where do you even start?
+        </div>
+        <div class="wf-tags">
+          <span class="wf-tag">anxiety</span>
+          <span class="wf-tag">paralysis</span>
+          <span class="wf-tag">chaos</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf-item" data-wf>
+      <div class="wf-node wf-node-teal">⚡</div>
+      <div class="wf-card">
+        <div class="wf-phase">Phase 1 — Activation</div>
+        <div class="wf-heading">You type. The agents wake up.</div>
+        <div class="wf-body">
+          One sentence is enough. SyncMaster's Primary Agent reads your intent,
+          extracts goals, and assigns priority levels — in under a second.
+          The fog begins to lift.
+        </div>
+        <div class="wf-tags">
+          <span class="wf-tag">NLP parsing</span>
+          <span class="wf-tag">goal extraction</span>
+          <span class="wf-tag">instant clarity</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf-item" data-wf>
+      <div class="wf-node wf-node-amber">📋</div>
+      <div class="wf-card">
+        <div class="wf-phase">Phase 2 — Decomposition</div>
+        <div class="wf-heading">Big goals become small wins</div>
+        <div class="wf-body">
+          Every goal is broken into concrete, achievable tasks.
+          Deadlines are set. Priorities are ordered. Each item
+          is saved to your personal SQLite database for persistence.
+        </div>
+        <div class="wf-tags">
+          <span class="wf-tag">task breakdown</span>
+          <span class="wf-tag">SQLite storage</span>
+          <span class="wf-tag">progress tracking</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf-item" data-wf>
+      <div class="wf-node wf-node-ice">📅</div>
+      <div class="wf-card">
+        <div class="wf-phase">Phase 3 — Orchestration</div>
+        <div class="wf-heading">Your week writes itself</div>
+        <div class="wf-body">
+          The Schedule MCP Agent maps every task to an optimal time slot
+          across a 5-day horizon. Critical items land at peak hours.
+          Lighter tasks fill the gaps. Balance, by design.
+        </div>
+        <div class="wf-tags">
+          <span class="wf-tag">MCP calendar tool</span>
+          <span class="wf-tag">priority scheduling</span>
+          <span class="wf-tag">5-day plan</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf-item" data-wf>
+      <div class="wf-node wf-node-teal">🎯</div>
+      <div class="wf-card">
+        <div class="wf-phase">Phase 4 — Execution</div>
+        <div class="wf-heading">You stop worrying. You start doing.</div>
+        <div class="wf-body">
+          Check off tasks as you complete them. Watch your progress accumulate.
+          Each tick is a small victory. Momentum builds. Anxiety fades.
+          You're in control — and it feels different this time.
+        </div>
+        <div class="wf-tags">
+          <span class="wf-tag">momentum</span>
+          <span class="wf-tag">progress tracking</span>
+          <span class="wf-tag">✓ done</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer style="border-top:1px solid var(--border);padding:32px 40px;max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;">
+  <div style="font-family:var(--serif);font-size:20px;font-style:italic;color:var(--teal);">SyncMaster</div>
+  <div style="font-family:var(--mono);font-size:11px;color:var(--muted);">Multi-Agent AI System · SQLite · Flask · v3.0</div>
+  <div style="font-family:var(--mono);font-size:10px;color:var(--muted);">Built by AInovation</div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════ */
+let allTasksData = [];
+
+function setEx(el) {
+  document.getElementById('goalInput').value = el.textContent;
+}
+
+function clearAll() {
+  document.getElementById('goalInput').value = '';
+  document.getElementById('analysisContent').innerHTML = emptyState('🧠','Activate agents to see analysis');
+  document.getElementById('tasksContent').innerHTML = emptyState('📋','Tasks will appear here after analysis');
+  document.getElementById('scheduleContent').innerHTML = emptyState('📅','Schedule will be built after task analysis');
+  document.getElementById('sv1').textContent = '—';
+  document.getElementById('sv2').textContent = '—';
+  document.getElementById('sv3').textContent = '—';
+  setPipe(1,'','Standby'); setPipe(2,'','Standby'); setPipe(3,'','Standby');
+}
+
+function emptyState(icon, msg) {
+  return `<div class="empty"><div class="empty-icon">${icon}</div><div class="empty-text">${msg}</div></div>`;
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function filterTasks(priority, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTasks(allTasksData, priority);
+}
+
+/* ═══════════════════════════════════════════
+   PIPELINE STATE
+═══════════════════════════════════════════ */
+function setPipe(n, state, msg) {
+  const el = document.getElementById('pipe'+n);
+  el.className = 'pipe-step' + (state ? ' '+state : '');
+  document.getElementById('pipeStatus'+n).textContent = msg;
+}
+
+/* ═══════════════════════════════════════════
+   MAIN PROCESS
+═══════════════════════════════════════════ */
+async function processGoal() {
+  const goal = document.getElementById('goalInput').value.trim();
+  if (!goal) { alert('Please describe your goals first!'); return; }
+
+  const btn = document.getElementById('activateBtn');
+  btn.disabled = true;
+  document.getElementById('btnIcon').innerHTML = '<div class="spin"></div>';
+  document.getElementById('btnText').textContent = 'Agents running…';
+
+  // Show all sections
+  document.getElementById('pipelineSection').style.display = 'block';
+  document.getElementById('statsSection').style.cssText = 'display:flex;gap:16px;max-width:1400px;margin:20px auto 0;padding:0 40px;';
+  document.getElementById('dashSection').style.display = 'block';
+
+  // Scroll to pipeline
+  setTimeout(() => document.getElementById('pipelineSection').scrollIntoView({behavior:'smooth',block:'start'}), 100);
+
+  setPipe(1,'active','Analyzing goals…');
+
+  try {
+    const res = await fetch('/process_goal', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({goal})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    // Animate pipeline
+    setPipe(1,'done','✓ ' + data.analysis.goals.length + ' goals found');
+    await delay(350);
+    setPipe(2,'active','Breaking down tasks…');
+    await delay(500);
+    setPipe(2,'done','✓ ' + data.tasks.tasks.length + ' tasks → SQLite');
+    await delay(350);
+    setPipe(3,'active','Building schedule…');
+    await delay(450);
+    setPipe(3,'done','✓ ' + data.schedule.total_days + ' days planned');
+
+    // Stats
+    animateCount('sv1', data.analysis.goals.length);
+    animateCount('sv2', data.tasks.tasks.length);
+    animateCount('sv3', data.schedule.total_days);
+
+    // Render modules
+    allTasksData = data.tasks.tasks;
+    renderAnalysis(data.analysis);
+    renderTasks(data.tasks.tasks, 'all');
+    renderSchedule(data.schedule);
+
+  } catch(e) {
+    alert('Error: ' + e.message);
+    setPipe(1,'','Error'); setPipe(2,'','—'); setPipe(3,'','—');
+  } finally {
+    btn.disabled = false;
+    document.getElementById('btnIcon').textContent = '⚡';
+    document.getElementById('btnText').textContent = 'Activate Agents';
+  }
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r,ms)); }
+
+function animateCount(id, target) {
+  const el = document.getElementById(id);
+  let cur = 0;
+  const inc = Math.ceil(target/20);
+  const t = setInterval(() => {
+    cur = Math.min(cur+inc, target);
+    el.textContent = cur;
+    if (cur >= target) clearInterval(t);
+  }, 40);
+}
+
+/* ═══════════════════════════════════════════
+   RENDER FUNCTIONS
+═══════════════════════════════════════════ */
+function getCatClass(cat) {
+  const map = {Academic:'cat-academic',Project:'cat-project',Professional:'cat-professional',Career:'cat-career',Learning:'cat-learning',Personal:'cat-personal',Task:'cat-task'};
+  return map[cat] || 'cat-personal';
+}
+
+function renderAnalysis(data) {
+  let html = `<div class="summary-card">${data.summary}</div>`;
+  data.goals.forEach(g => {
+    html += `<div class="goal-card">
+      <div class="goal-top">
+        <span class="cat-tag ${getCatClass(g.category)}">${g.category}</span>
+        <span class="pri-badge pri-${g.priority}">${g.priority.toUpperCase()}</span>
+      </div>
+      <div class="goal-context">"…${g.context}…"</div>
+    </div>`;
+  });
+  html += `<div class="complexity-row">
+    <div class="complexity-item">
+      <div class="complexity-key">Complexity</div>
+      <div class="complexity-val" style="color:var(--amber)">${data.complexity}</div>
+    </div>
+    <div class="complexity-item">
+      <div class="complexity-key">Agent Version</div>
+      <div class="complexity-val" style="color:var(--teal);font-size:12px;">${data.agent}</div>
+    </div>
+    <div class="complexity-item">
+      <div class="complexity-key">Categories</div>
+      <div class="complexity-val" style="color:var(--ice);font-size:12px;">${data.categories.join(', ')}</div>
+    </div>
+  </div>`;
+  document.getElementById('analysisContent').innerHTML = html;
+}
+
+function renderTasks(tasks, filter) {
+  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.priority === filter);
+  if (!filtered.length) {
+    document.getElementById('tasksContent').innerHTML = emptyState('📋','No tasks match this filter');
+    return;
+  }
+  let html = '';
+  filtered.forEach((t,i) => {
+    html += `<div class="task-row p-${t.priority}" id="tr_${i}" onclick="toggleTaskDone(${i})">
+      <div class="task-check-box" id="tcb_${i}"></div>
+      <div class="task-main">
+        <div class="task-text">${t.task}</div>
+        <div class="task-meta">
+          <span class="task-dl">📅 ${t.deadline}</span>
+          <span class="task-db">DB #${t.id}</span>
+          <span class="task-cat">${t.category}</span>
+        </div>
+      </div>
+      <span class="pri-badge pri-${t.priority}">${t.priority.toUpperCase()}</span>
+    </div>`;
+  });
+  document.getElementById('tasksContent').innerHTML = html;
+}
+
+function toggleTaskDone(i) {
+  const row = document.getElementById('tr_'+i);
+  const box = document.getElementById('tcb_'+i);
+  row.classList.toggle('done');
+  box.textContent = row.classList.contains('done') ? '✓' : '';
+}
+
+function renderSchedule(data) {
+  let html = '';
+  for (const [day, info] of Object.entries(data.schedule)) {
+    html += `<div class="day-col">
+      <div class="day-col-header">
+        <span class="day-name">${day}</span>
+        <span class="day-date">${info.date}</span>
+      </div>
+      <div class="day-slots">`;
+    info.slots.forEach(slot => {
+      html += `<div class="slot-card p-${slot.priority}">
+        <div class="slot-time">${slot.time}</div>
+        <div class="slot-name">${slot.task}</div>
+        <div class="slot-dur">⏱ ${slot.duration}</div>
+        <span class="mcp-tag">MCP:calendar</span>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+  document.getElementById('scheduleContent').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════
+   SCROLL ANIMATIONS (Scrollytelling + Waterfall)
+═══════════════════════════════════════════ */
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('[data-scroll], [data-wf]').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
