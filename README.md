@@ -223,7 +223,7 @@ CREATE TABLE sessions (
 ## 🏆 Built For
 
 **Google Cloud Gen AI Academy — APAC Edition**
-Cohort 2 · Hackathon Track
+Cohort 1 · Hackathon Track
 *Top 100 Shortlisted Project*
 
 ---
